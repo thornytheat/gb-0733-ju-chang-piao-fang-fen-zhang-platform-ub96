@@ -24,7 +24,7 @@ def test_home_actions_match_live_publish_rerun_and_export(client):
 
 
 def test_every_module_has_a_live_preview_endpoint_and_missing_run_response(client):
-    expected = {'intake': 12, 'rights': 15, 'scans': 7, 'allocation': 14, 'refunds': 4, 'reconcile': 14, 'evidence': 33}
+    expected = {'intake': 12, 'rights': 18, 'scans': 9, 'allocation': 14, 'refunds': 4, 'reconcile': 17, 'evidence': 34}
     for module, count in expected.items():
         actual = client.get(f'/api/{module}/sample')
         assert actual.status_code == 200 and actual.json()['total'] == count

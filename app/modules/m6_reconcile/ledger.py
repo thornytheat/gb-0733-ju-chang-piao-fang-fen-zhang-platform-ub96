@@ -1,13 +1,13 @@
 from collections import Counter
 
 
-def settlement_rows(publication, shows, scans, refunds):
+def settlement_rows(allocations, shows, scans, refunds):
     accepted = {(scan['ticket'], scan['show']): scan for scan in scans}
     reversed_cents = Counter()
     for refund in refunds:
         reversed_cents[refund['ticket'], refund['show']] += -refund['reversal_cents']
     rows = []
-    for original in publication['allocations']:
+    for original in allocations:
         pair = (original['ticket'], original['show'])
         show = shows[original['show']]
         scan = accepted.get(pair)

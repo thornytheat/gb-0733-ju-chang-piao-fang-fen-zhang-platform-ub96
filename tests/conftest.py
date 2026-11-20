@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app.config import SOURCE_COLUMNS
 from app.main import create_app
 from app.pipeline import compute
-from app.sources import sample_sources
+from app.sources import sample_changes, sample_sources
 
 
 @pytest.fixture
@@ -17,7 +17,7 @@ def files():
 
 @pytest.fixture(scope='module')
 def sample():
-    return compute('tour-demo', 'fixture', sample_sources())
+    return compute('tour-demo', 'fixture', sample_sources(), sample_changes())
 
 
 @pytest.fixture

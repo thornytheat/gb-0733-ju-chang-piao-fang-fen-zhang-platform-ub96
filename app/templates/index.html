@@ -19,6 +19,7 @@
         {% for key, label in modules %}
         <a class="rail__item" href="#{{ key }}" data-module="{{ key }}" {% if key == 'reconcile' %}aria-current="location"{% endif %}>{{ label }}</a>
         {% endfor %}
+        <a class="rail__item" href="/changes?run={{ manifest.run_id }}">换场核对</a>
       </nav>
       <div class="rail__book">
         <span>当前账册</span><strong>{{ manifest.book }}</strong>

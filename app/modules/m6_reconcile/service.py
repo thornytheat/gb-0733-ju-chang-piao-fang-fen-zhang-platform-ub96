@@ -56,8 +56,11 @@ def count_sources(stats, accepted, isolates):
     return counts
 
 
-def reconcile(tickets, shows, scans, refunds, publication, sources):
-    ledger = settlement_rows(publication, shows, scans, refunds)
+def reconcile(tickets, shows, scans, refunds, ledger_allocations, sources,
+              publication=None, changes=None, adjusted=None, carries=None):
+    publication = publication or {'allocations': ledger_allocations, 'unassigned': []}
+    changes, adjusted, carries = changes or [], adjusted or [], carries or []
+    ledger = settlement_rows(ledger_allocations, shows, scans, refunds)
     unassigned = publication['unassigned']
     by_show, by_venue = summarize_sides(shows, scans, ledger)
     by_ticket = funding_checks(tickets, refunds, ledger, unassigned)
@@ -68,6 +71,16 @@ def reconcile(tickets, shows, scans, refunds, publication, sources):
     payable = sum(row['payable_cents'] for row in by_venue)
     unsettled = sum(row['unsettled_cents'] for row in by_venue) + unallocated
     difference = paid - refunded - payable - unsettled
+    carry_conservation = True
+    if changes:
+        original_by_pair = {(row['ticket'], row['show']): row for row in publication['allocations']}
+        carry_conservation = all(
+            row['retained_cents'] + row['carried_cents']
+            == original_by_pair[(row['ticket'], row['old_show'])]['allocated_cents']
+            for row in carries)
+        carry_conservation = carry_conservation and (
+            sum(row['allocated_cents'] for row in adjusted)
+            + sum(row['allocated_cents'] for row in carries) == allocated)
     checks = {
         'source_rows': all(row['difference'] == 0 for row in sources),
         'original_allocation': paid == allocated + unallocated,
@@ -75,11 +88,14 @@ def reconcile(tickets, shows, scans, refunds, publication, sources):
                         and sum(row['refunded_cents'] for row in ledger) == refunded,
         'show_balances': all(row['difference_cents'] == 0 for row in by_show),
         'ticket_balances': all(row['difference_cents'] == 0 for row in by_ticket),
+        'carry_conservation': carry_conservation,
         'funding': difference == 0 and sum(row['payable_cents'] for row in by_ticket) == payable,
     }
     totals = {'paid_cents': paid, 'allocated_cents': allocated, 'unallocated_cents': unallocated,
               'refunded_cents': refunded, 'net_cents': paid - refunded, 'payable_cents': payable,
               'unsettled_cents': unsettled, 'difference_cents': difference,
-              'gap_cents': allocated - payable, 'scan_count': len(scans), 'ticket_count': len(tickets)}
+              'gap_cents': allocated - payable, 'scan_count': len(scans), 'ticket_count': len(tickets),
+              'change_count': len(changes),
+              'carried_cents': sum(row['allocated_cents'] for row in carries)}
     return {'balanced': all(checks.values()), 'checks': checks, 'totals': totals, 'ledger': ledger,
             'shows': by_show, 'venues': by_venue, 'tickets': by_ticket, 'sources': sources}

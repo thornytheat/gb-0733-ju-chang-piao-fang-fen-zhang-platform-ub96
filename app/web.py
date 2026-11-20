@@ -35,3 +35,13 @@ def home(request: Request, run: str = '', notice: str = ''):
         'preview': manifest['run_id'] == 'sample', 'modules': MODULES, 'local_time': local_time.strftime('%m-%d %H:%M:%S'),
         'notice': {'published': '批次已发布', 'reused': '已复用原批次'}.get(notice, ''),
     })
+
+
+@router.get('/changes', response_class=HTMLResponse)
+def changes_page(request: Request, run: str = ''):
+    snapshot = snapshot_for(request, run) if run else request.app.state.store.latest()
+    snapshot = snapshot or request.app.state.preview
+    return templates.TemplateResponse(request, 'changes.html', {
+        'manifest': snapshot['manifest'], 'review': snapshot['change_review'],
+        'checks': snapshot['funding']['checks'],
+    })

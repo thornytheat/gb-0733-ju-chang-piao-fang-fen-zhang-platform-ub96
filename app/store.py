@@ -4,7 +4,7 @@ from contextlib import closing
 from pathlib import Path
 
 from app.errors import Problem
-from app.manifest import canonical, input_manifest, run_identifier
+from app.manifest import canonical, changes_digest, input_manifest, run_identifier
 from app.pipeline import compute
 
 SCHEMA = Path(__file__).with_name('schema.sql').read_text(encoding='utf-8')
@@ -24,6 +24,41 @@ class Store:
         with closing(self.connect()) as db, db:
             db.execute('PRAGMA journal_mode = WAL')
             db.executescript(SCHEMA)
+
+    def changes(self, book):
+        with closing(self.connect()) as db:
+            rows = db.execute('SELECT payload FROM show_changes WHERE book = ? ORDER BY registered_at, change_id',
+                              (book,)).fetchall()
+        return [json.loads(row[0]) for row in rows]
+
+    def save_change(self, book, entry):
+        with closing(self.connect()) as db, db:
+            db.execute('BEGIN IMMEDIATE')
+            existing = db.execute('SELECT payload FROM show_changes WHERE change_id = ?',
+                                  (entry['change_id'],)).fetchone()
+            if existing:
+                if json.loads(existing[0]) == entry:
+                    return False
+                raise Problem(409, 'CHANGE_CONFLICT', {'change_id': entry['change_id']})
+            try:
+                db.execute('INSERT INTO show_changes (change_id, book, old_show, new_show, payload, registered_at) '
+                           'VALUES (?, ?, ?, ?, ?, ?)',
+                           (entry['change_id'], book, entry['old_show'], entry['new_show'],
+                            canonical(entry), entry['registered_at']))
+            except sqlite3.IntegrityError as exc:
+                raise Problem(409, 'CHANGE_ALREADY_REGISTERED',
+                              {'old_show': entry['old_show'], 'new_show': entry['new_show']}) from exc
+            return True
+
+    def seed_changes(self, book, entries):
+        """幂等播种样本换场；已存在且内容一致时跳过。"""
+        with closing(self.connect()) as db, db:
+            for entry in entries:
+                db.execute('INSERT OR IGNORE INTO show_changes '
+                           '(change_id, book, old_show, new_show, payload, registered_at) '
+                           'VALUES (?, ?, ?, ?, ?, ?)',
+                           (entry['change_id'], book, entry['old_show'], entry['new_show'],
+                            canonical(entry), entry['registered_at']))
 
     def latest(self, book=None):
         with closing(self.connect()) as db:
@@ -50,15 +85,19 @@ class Store:
 
     def commit(self, book, sources):
         inputs = input_manifest(sources)
-        identifier = run_identifier(book, inputs)
         with closing(self.connect()) as db, db:
             db.execute('BEGIN IMMEDIATE')
+            change_rows = db.execute('SELECT payload FROM show_changes WHERE book = ? ORDER BY change_id',
+                                     (book,)).fetchall()
+            changes = [json.loads(row[0]) for row in change_rows]
+            identifier = run_identifier(book, inputs, changes_digest(changes))
             existing = db.execute('SELECT payload FROM runs WHERE id = ?', (identifier,)).fetchone()
             if existing:
                 return json.loads(existing[0]), True
             origin = db.execute('SELECT payload FROM publications WHERE book = ?', (book,)).fetchone()
             head = db.execute('SELECT payload FROM runs WHERE book = ? ORDER BY sequence DESC LIMIT 1', (book,)).fetchone()
-            snapshot = compute(book, identifier, sources, json.loads(origin[0]) if origin else None,
+            snapshot = compute(book, identifier, sources, changes,
+                               json.loads(origin[0]) if origin else None,
                                json.loads(head[0]) if head else None)
             if origin is None:
                 db.execute('INSERT INTO publications VALUES (?, ?)', (book, canonical(snapshot['publication'])))

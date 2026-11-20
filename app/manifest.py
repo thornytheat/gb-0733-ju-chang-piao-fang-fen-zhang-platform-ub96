@@ -21,8 +21,21 @@ def input_manifest(sources):
             for name in SOURCE_COLUMNS]
 
 
-def run_identifier(book, inputs):
-    return 'run_' + checksum(canonical([book, RULE_VERSION, inputs]))[:24]
+def run_identifier(book, inputs, changes_digest=None):
+    material = [book, RULE_VERSION, inputs, changes_digest or 'no-changes']
+    return 'run_' + checksum(canonical(material))[:24]
+
+
+def changes_digest(changes):
+    material = [[row['change_id'], row['old_show'], row['new_show'], row['effective_at'],
+                 row['title'], row['venue'], row['opens'], row['closes']] for row in changes]
+    return checksum(canonical(material))
+
+
+def change_identifier(book, entry):
+    material = [book, entry['old_show'], entry['new_show'], entry['effective_at'],
+                entry['title'], entry['venue'], entry['opens'], entry['closes']]
+    return 'chg_' + checksum(canonical(material))[:20]
 
 
 def publication_digest(tickets, shows, rights):

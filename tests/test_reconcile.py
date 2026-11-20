@@ -4,9 +4,9 @@ from app.modules.m6_reconcile.service import reconcile
 def test_net_receipts_equal_venue_payable_and_pending(sample):
     totals = sample['funding']['totals']
     assert totals == {'paid_cents': 157746, 'allocated_cents': 154548, 'unallocated_cents': 3198,
-                      'refunded_cents': 5583, 'net_cents': 152163, 'payable_cents': 135546,
-                      'unsettled_cents': 16617, 'difference_cents': 0, 'gap_cents': 19002,
-                      'scan_count': 7, 'ticket_count': 12}
+                      'refunded_cents': 5583, 'net_cents': 152163, 'payable_cents': 143213,
+                      'unsettled_cents': 8950, 'difference_cents': 0, 'gap_cents': 11335,
+                      'scan_count': 9, 'ticket_count': 12, 'change_count': 1, 'carried_cents': 7918}
     assert totals['net_cents'] == totals['payable_cents'] + totals['unsettled_cents']
 
 
@@ -20,11 +20,22 @@ def test_two_shows_are_aggregated_into_same_venue(sample):
     assert (venue['shows'], venue['payable_cents'], venue['allocated_cents'], venue['scan_count']) == (2, 6756, 10256, 3)
 
 
+def test_carried_show_settles_at_new_venue_without_double_allocation(sample):
+    venues = {row['venue']: row for row in sample['funding']['venues']}
+    new_venue = venues['滨江演艺中心']
+    assert (new_venue['allocated_cents'], new_venue['payable_cents'], new_venue['scan_count']) == (7918, 7667, 2)
+    old = next(row for row in sample['funding']['shows'] if row['show'] == 'B-RAIN')
+    new = next(row for row in sample['funding']['shows'] if row['show'] == 'B-RAIN-2')
+    assert (old['allocated_cents'], old['payable_cents'], old['scan_count']) == (128790, 128790, 3)
+    assert (new['allocated_cents'], new['payable_cents'], new['unsettled_cents']) == (7918, 7667, 251)
+    assert sample['funding']['checks']['carry_conservation'] is True
+
+
 def test_source_rows_reconcile_across_all_five_files(sample):
     sources = sample['funding']['sources']
-    assert sum(row['accepted'] for row in sources) == 43
-    assert sum(row['rows'] for row in sources) == 83
-    assert sum(row['isolated'] for row in sources) == 33
+    assert sum(row['accepted'] for row in sources) == 45
+    assert sum(row['rows'] for row in sources) == 86
+    assert sum(row['isolated'] for row in sources) == 34
     assert sum(row['headers'] + row['blank'] for row in sources) == 7
     assert all(row['difference'] == 0 for row in sources)
 
@@ -37,11 +48,13 @@ def test_each_ticket_preserves_its_own_balance_not_just_global_sum(sample):
 
 
 def test_reconcile_detects_shift_between_two_tickets_even_if_total_matches(sample):
-    publication = dict(sample['publication'])
-    publication['allocations'] = [{**row, 'allocated_cents': row['allocated_cents'] + {'00110': 1, '00117': -1}.get(row['ticket'], 0)}
-                                  for row in publication['allocations']]
+    ledger_allocations = [{**row,
+                           'allocated_cents': row['allocated_cents'] + {'00110': 1, '00117': -1}.get(row['ticket'], 0)}
+                          for row in sample['adjusted_allocations'] + sample['carries']]
     result = reconcile({row['ticket']: row for row in sample['tickets']}, {row['show']: row for row in sample['shows']},
-                       sample['scans'], sample['refunds'], publication, sample['funding']['sources'])
+                       sample['scans'], sample['refunds'], ledger_allocations,
+                       sample['funding']['sources'], sample['publication'], sample['changes'],
+                       sample['adjusted_allocations'], sample['carries'])
     assert result['checks']['funding'] is True
     assert result['checks']['ticket_balances'] is False
     assert result['balanced'] is False

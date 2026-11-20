@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>换场核对 · 剧场票房分账台</title>
+  <link rel="stylesheet" href="/static/theme.css">
+  <link rel="stylesheet" href="/static/layout.css">
+  <link rel="stylesheet" href="/static/components.css">
+  <link rel="stylesheet" href="/static/changes.css">
+  <script src="/static/changes.js" type="module"></script>
+</head>
+<body data-run="{{ manifest.run_id }}" data-book="{{ manifest.book }}">
+  <div class="app">
+    <aside class="rail">
+      <a class="rail__brand" href="/" aria-label="返回首页">
+        <span class="ticket-mark" aria-hidden="true"></span><span>剧场票房<span class="brand-line">巡演财务</span></span>
+      </a>
+      <nav aria-label="业务模块">
+        <a class="rail__item" href="/">分账工作台</a>
+        <a class="rail__item" aria-current="location" href="#changes">换场核对</a>
+      </nav>
+      <div class="rail__book">
+        <span>当前账册</span><strong>{{ manifest.book }}</strong>
+        <span>原分账</span><code title="{{ manifest.publication_id }}">{{ manifest.publication_id[:13] }}</code>
+      </div>
+    </aside>
+    <div class="work">
+      <header class="topbar">
+        <div class="topbar__title"><h1>巡演换场核对</h1>
+          <span class="state {{ 'state--ok' if review.balanced else 'state--bad' }}">{{ '结转守恒' if review.balanced else '结转异常' }}</span>
+        </div>
+        <div class="actions">
+          <a class="btn btn--primary" href="/api/changes/review/{{ manifest.run_id }}/export" download>下载换场凭证 <span aria-hidden="true">↓</span></a>
+        </div>
+      </header>
+      <main class="content">
+        <div class="batchline">
+          <span>批次 <code title="{{ manifest.run_id }}">{{ manifest.run_id }}</code></span>
+          <span>换场登记 <b>{{ review.totals.change_count }}</b> 笔</span>
+          <span>结转金额 <b>¥{{ review.totals.carried_cents | money }}</b></span>
+          <span>旧场保留 <b>¥{{ review.totals.retained_cents | money }}</b></span>
+          <span>新场应收 <b>¥{{ review.totals.new_payable_cents | money }}</b></span>
+          <output id="change-message" aria-live="polite"></output>
+        </div>
+
+        <section class="panel" aria-labelledby="register-title" id="register">
+          <div class="panel__head"><h2 id="register-title">换场登记</h2><span>单条登记 · 提交前校验，失败不改动账册</span></div>
+          <form id="change-form" class="change-form">
+            <label>原场次键<input name="old_show" required maxlength="64" placeholder="如 B-RAIN" autocomplete="off"></label>
+            <label>新场次键<input name="new_show" required maxlength="64" placeholder="如 B-RAIN-2" autocomplete="off"></label>
+            <label>新演出名<input name="title" required maxlength="120" placeholder="新场馆演出名"></label>
+            <label>新场馆<input name="venue" required maxlength="120" placeholder="新场馆名"></label>
+            <label>换场生效时刻<input name="effective_at" required placeholder="2026-11-20T10:00:00+08:00"></label>
+            <label>新场核销起点<input name="opens" required placeholder="2026-11-20T18:00:00+08:00"></label>
+            <label>新场核销终点<input name="closes" required placeholder="2026-11-20T22:00:00+08:00"></label>
+            <button class="btn btn--primary" type="submit">登记换场</button>
+          </form>
+          <p class="change-hint">时间须为带时区的 ISO 秒级时间；生效时刻不得晚于新场核销起点。重复提交同一内容不会重复登记。</p>
+        </section>
+
+        {% for card in review.cards %}
+        <section class="panel change-card" aria-labelledby="card-{{ loop.index }}">
+          <div class="panel__head">
+            <div class="evidence-title">
+              <h2 id="card-{{ loop.index }}">{{ card.change.old_show }} → {{ card.change.new_show }}</h2>
+              <span>{{ card.change.title }} · {{ card.change.venue }}</span>
+            </div>
+            <span class="state {{ 'state--ok' if card.conserved else 'state--bad' }}">{{ '守恒通过' if card.conserved else '守恒失败' }}</span>
+          </div>
+          <div class="change-meta">
+            <span>登记号 <code>{{ card.change.change_id }}</code></span>
+            <span>生效 <time datetime="{{ card.change.effective_at }}">{{ card.change.effective_at }}</time></span>
+            <span>核销窗 <time>{{ card.change.opens }}</time> ~ <time>{{ card.change.closes }}</time></span>
+            <span>登记于 <time>{{ card.change.registered_at }}</time></span>
+          </div>
+          <div class="ledger-scroll" tabindex="0">
+            <table class="ledger change-table">
+              <thead><tr>
+                <th scope="col">票码</th><th scope="col" class="num">原分账 ¥</th><th scope="col" class="num">旧场保留 ¥</th>
+                <th scope="col" class="num">结转到新场 ¥</th><th scope="col" class="num">旧场退款 ¥</th>
+                <th scope="col" class="num">新场退款 ¥</th><th scope="col" class="num">新场应收 ¥</th>
+                <th scope="col" class="num">新场未结 ¥</th><th scope="col" class="num">新场核销</th>
+              </tr></thead>
+              <tbody>
+              {% for row in card.entries %}
+                <tr>
+                  <th scope="row">{{ row.ticket }}</th>
+                  <td class="num">{{ row.original_cents | money }}</td>
+                  <td class="num">{{ row.retained_cents | money }}</td>
+                  <td class="num"><strong>{{ row.carried_cents | money }}</strong></td>
+                  <td class="num">{{ row.old_refunded_cents | money }}</td>
+                  <td class="num">{{ row.new_refunded_cents | money }}</td>
+                  <td class="num">{{ row.new_payable_cents | money }}</td>
+                  <td class="num">{{ row.new_unsettled_cents | money }}</td>
+                  <td class="num">{{ row.new_scan_count }}</td>
+                </tr>
+              {% else %}
+                <tr><td class="empty" colspan="9">该换场没有可结转的票场金额（旧场金额均已核销锁定或退款冲正）。</td></tr>
+              {% endfor %}
+              </tbody>
+              <tfoot><tr>
+                <th scope="row">合计（{{ card.totals.ticket_count }} 张）</th>
+                <td class="num">{{ card.totals.original_cents | money }}</td>
+                <td class="num">{{ card.totals.retained_cents | money }}</td>
+                <td class="num">{{ card.totals.carried_cents | money }}</td>
+                <td class="num">—</td>
+                <td class="num">{{ card.totals.new_refunded_cents | money }}</td>
+                <td class="num">{{ card.totals.new_payable_cents | money }}</td>
+                <td class="num">—</td>
+                <td class="num">{{ card.totals.new_scan_count }}</td>
+              </tr></tfoot>
+            </table>
+          </div>
+          <p class="ledger-notes"><span>旧场保留 = 旧场核销锁定应收 + 已入账退款；原分账 = 旧场保留 + 结转，票款不二次分配。</span></p>
+        </section>
+        {% else %}
+        <section class="panel change-card">
+          <div class="panel__head"><h2>暂无换场登记</h2></div>
+          <p class="change-hint">在上方登记第一笔换场后，重新发布批次即可看到结转核对。</p>
+        </section>
+        {% endfor %}
+      </main>
+      <footer class="statusbar">
+        <span class="state {{ 'state--ok' if checks.carry_conservation else 'state--bad' }}">换场守恒 {{ '通过' if checks.carry_conservation else '失败' }}</span>
+        <span>金额勾稽 {{ '通过' if review.balanced else '失败' }}</span>
+        <span class="statusbar__right"><a href="/docs">API</a> · <a href="/">返回工作台</a></span>
+      </footer>
+    </div>
+  </div>
+</body>
+</html>

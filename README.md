@@ -31,9 +31,22 @@ python -m pytest -q
 | 退款冲正 | 原分账限额、冲正与剩余额度 | `GET /api/refunds/{run_id}` |
 | 场馆勾稽 | 逐票、逐场、逐馆与源行核对 | `GET /api/reconcile/{run_id}` |
 | 结算凭证 | 运行清单、隔离行、凭证 ZIP | `GET /api/evidence/{run_id}` |
+| 换场核对 | 新旧场并存、结转守恒、换场凭证 ZIP | `GET /changes`、`GET /api/changes/review/{run_id}` |
 
 各模块读取接口支持 `run_id=sample` 的预览和 `view`、`q`、`show`、`limit`、`offset` 查询。接口文档在 `/docs`。发布接口是 `POST /api/runs/sample` 与 `POST /api/runs`，重跑是 `POST /api/runs/{run_id}/rerun`，下载是 `GET /api/evidence/{run_id}/export`。
 
 单一账册保留首次发布的票款、权益和场次定义。修订用完整快照提交，允许更新核销，新增停演事实和退款。历史批次可重跑或导出，旧批次重跑不会回退当前账册。每个文件限 512 KiB 和 12,000 条逻辑行。本项目覆盖人民币停演退款和整套票按场分账。
+
+## 巡演临时换场
+
+换场在账册内登记为一条持久化事实（`POST /api/changes/{book}`，单条登记，不做权限和批量运营），原票源、权益、场次定义和原分账始终保留，旧场次不会从账上消失。换场生效后：
+
+- **新旧场并存**：旧场标记为 `superseded`，历史核销与停演退款仍指向旧场；新场次凭结转权益进场并单独结算。
+- **票款不二次分配**：原分账行不可变。每个「票 × 旧场」按 `旧场保留 = 旧场已核销锁定的应收 + 已入账退款` 留场，其余未结额结转到新场，恒等 `原分账 = 旧场保留 + 结转`。
+- **核销唯一**：换场生效时刻起，旧场入场核销拒收（`SCAN_SUPERSEDED`）；新场只接受持有结转权益（`SCAN_NO_CARRY`）的票，同一张票不会被新旧场各计一次。
+- **退款限额**：旧场退款仍以原分账为限额；新场退款以结转额为限额（`REFUND_CARRY_EXCEEDED`），且不得早于换场生效时刻。
+- **幂等与失败安全**：登记按内容哈希取号，同内容重提不重复落库；发布重跑在输入与换场集合相同时复用同一 run，不重复生成场次记录或重复计入核销。任何校验失败都在事务内回滚，旧版场次与权益不变。
+
+换场核对页 `/changes` 展示逐场、逐票的保留/结转/应收核对，并提供独立换场凭证 ZIP（`GET /api/changes/review/{run_id}/export`）；主结算凭证 ZIP 在存在换场时同时附 `show-changes.csv`、`carry-ledger.csv` 等结转证据。
 
 `app/modules` 放各业务规则，`sample_data` 放本机样例，`tests` 放业务与原子性回归。[规则与样例登记](docs/DEPTH.md)

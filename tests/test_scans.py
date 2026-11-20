@@ -38,7 +38,20 @@ def test_conflicting_scan_id_is_removed(sample):
 def test_scan_id_exact_duplicate_and_scanner_repeat_are_distinct(sample):
     assert sample['reason_counts']['SCAN_ID_DUPLICATE'] == 1
     assert sample['reason_counts']['SCAN_REPEAT'] == 2
-    assert len(sample['scans']) == 7
+    assert len(sample['scans']) == 9
+
+
+def test_change_supersedes_old_show_and_admits_carried_new_show(sample):
+    """换场生效后旧场核销拒收，新场凭结转权益进场，同票不会两边各计一次。"""
+    accepted = {row['scan_id']: row['show'] for row in sample['scans']}
+    assert accepted['S111-B2'] == 'B-RAIN-2' and accepted['S114-B2'] == 'B-RAIN-2'
+    blocked = next(row for row in sample['quarantine'] if row['key'] == 'S116-B-OLD')
+    assert blocked['code'] == 'SCAN_SUPERSEDED'
+    assert blocked['detail'] == {'new_show': 'B-RAIN-2'}
+    pairs = {(row['ticket'], row['show']) for row in sample['scans']}
+    assert ('00111', 'B-RAIN-2') in pairs and ('00111', 'A-LAKE') in pairs
+    assert ('00114', 'B-RAIN') not in pairs and ('00116', 'B-RAIN') not in pairs
+    assert ('00114', 'B-RAIN-2') in pairs
 
 
 def test_scan_api_filters_using_preserved_ticket_id(client):

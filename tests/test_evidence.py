@@ -52,7 +52,7 @@ def test_reason_code_counts_match_export_rows(client):
     with archive:
         content = archive.read('evidence/quarantine.csv').decode('utf-8-sig')
         rows = list(csv.DictReader(io.StringIO(content)))
-        assert len(rows) == 33
+        assert len(rows) == 34
         exceeded = next(row for row in rows if row['key'] == 'R107-02')
         assert exceeded['code'] == 'REFUND_CAP_EXCEEDED'
         assert json.loads(exceeded['detail'])['available_cents'] == 2333

@@ -1,0 +1,11 @@
+.change-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 12px; padding: 14px var(--pad); align-items: end; }
+.change-form label { display: grid; gap: 4px; font-size: 11px; color: var(--ink-2); }
+.change-form input { height: 30px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line-2); color: var(--ink); padding: 3px 8px; font: inherit; }
+.change-form .btn { grid-column: auto; }
+.change-hint { padding: 0 var(--pad) 12px; color: var(--ink-2); font-size: 11px; }
+.change-card { min-width: 0; }
+.change-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 9px var(--pad); border-bottom: 1px solid var(--line); color: var(--ink-2); font-size: 11px; }
+.change-table { min-width: 820px; }
+.change-table tfoot td, .change-table tfoot th { background: var(--panel-2); font-weight: 700; }
+.change-table .empty { text-align: center; color: var(--ink-2); padding: 14px; }
+.change-card .ledger-scroll { max-height: 320px; }

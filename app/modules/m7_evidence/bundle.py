@@ -3,6 +3,7 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 from app.manifest import canonical, checksum
 from app.modules.m7_evidence.csv_out import make_csv
+from app.modules.m8_changes.bundle import change_tables
 from app.reasons import REASONS
 
 ORIGIN = ('source', 'line', 'end_line', 'raw')
@@ -46,6 +47,9 @@ def build_bundle(snapshot, current, original):
                   for item in snapshot['publication']['inputs']})
     for name, (rows, fields) in evidence_tables(snapshot).items():
         files[f'evidence/{name}'] = make_csv(rows, fields)
+    if snapshot.get('changes'):
+        for name, (rows, fields) in change_tables(snapshot).items():
+            files[f'evidence/{name}'] = make_csv(rows, fields)
     manifest = {**snapshot['manifest'], 'original_inputs': snapshot['publication']['inputs'],
                 'checks': snapshot['funding']['checks'], 'totals': snapshot['funding']['totals'],
                 'reason_counts': snapshot['reason_counts'], 'hashes': {name: checksum(data) for name, data in files.items()}}

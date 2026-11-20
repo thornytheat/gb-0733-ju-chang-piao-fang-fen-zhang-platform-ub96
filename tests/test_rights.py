@@ -16,7 +16,12 @@ def test_hold_and_later_cancellation_have_distinct_eligibility(sample):
 def test_conflicting_rights_lose_both_rows(sample):
     errors = [row for row in sample['quarantine'] if row['code'] == 'RIGHT_CONFLICT']
     assert [(row['key'], row['raw'][2]) for row in errors] == [('00114/A-LAKE', '1'), ('00114/A-LAKE', '2')]
-    assert [row['show'] for row in sample['rights'] if row['ticket'] == '00114'] == ['B-RAIN']
+    base_rights = [row['show'] for row in sample['rights']
+                   if row['ticket'] == '00114' and row.get('source') != 'transfer']
+    carried = [row['show'] for row in sample['rights']
+               if row['ticket'] == '00114' and row.get('source') == 'transfer']
+    assert base_rights == ['B-RAIN']
+    assert carried == ['B-RAIN-2']
 
 
 def test_normalized_same_weight_retains_original_source(sample):
