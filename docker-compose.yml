@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    ports:
+      - "18422:18422"
+    environment:
+      THEATRE_DB_PATH: /var/lib/theatre/theatre.sqlite3
+    volumes:
+      - theatre-data:/var/lib/theatre
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18422/healthz', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+volumes:
+  theatre-data:

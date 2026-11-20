@@ -1,0 +1,55 @@
+{% set total = funding.totals %}
+<section class="ledger-area" aria-label="双账核对">
+  <div class="balance-strip">
+    <h2>双账核对</h2>
+    <div class="balance-strip__totals"><span>合计 <b>{{ funding.shows | length }}</b> 场</span><span>账面差额 <b>{{ funding.shows | selectattr('gap_cents') | list | length }}</b> 场</span></div>
+    <div class="balance-strip__check"><span class="state state--ok">勾稽差异</span><strong>¥{{ total.difference_cents | money }}</strong></div>
+  </div>
+  <div class="ledger-scroll" tabindex="0" aria-label="按场次核销及结算明细">
+    <div class="ledger-pair">
+      <section class="panel ledger-side" aria-labelledby="scan-title">
+        <div class="panel__head"><h3 id="scan-title">核销账</h3><span>票场分摊</span></div>
+        <table class="ledger">
+          <thead><tr><th scope="col">演出 / 场馆</th><th scope="col" class="num">核销</th><th scope="col" class="num">原分账 ¥</th></tr></thead>
+          <tbody>
+          {% for row in funding.shows %}
+            <tr data-show-row="{{ row.show }}" {% if row.gap_cents %}class="has-gap"{% endif %}>
+              <th scope="row"><button type="button" class="show-link" data-show="{{ row.show }}"><strong title="{{ row.title }}">{{ row.title }}</strong><small title="{{ row.venue }}">{{ row.venue }}</small></button></th>
+              <td class="num">{{ row.scan_count }}</td><td class="num">{{ row.allocated_cents | money }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+          <tfoot><tr><th scope="row">场次合计</th><td class="num">{{ total.scan_count }}</td><td class="num">{{ total.allocated_cents | money }}</td></tr></tfoot>
+        </table>
+      </section>
+      <section class="difference-slot" aria-labelledby="gap-title">
+        <div class="panel__head"><h3 id="gap-title">差额槽</h3></div>
+        <table class="ledger">
+          <thead><tr><th scope="col" class="num">账面差额 ¥</th></tr></thead>
+          <tbody>
+          {% for row in funding.shows %}
+            <tr data-show-row="{{ row.show }}" {% if row.gap_cents %}class="has-gap"{% endif %}><td class="num"><span class="sr-only">{{ row.title }}</span>{{ row.gap_cents | money if row.gap_cents else '—' }}</td></tr>
+          {% endfor %}
+          </tbody>
+          <tfoot><tr><td class="num">{{ total.gap_cents | money }}</td></tr></tfoot>
+        </table>
+      </section>
+      <section class="panel ledger-side" aria-labelledby="payable-title">
+        <div class="panel__head"><h3 id="payable-title">结算账</h3><span>人民币 / 元</span></div>
+        <table class="ledger">
+          <thead><tr><th scope="col">场次状态</th><th scope="col" class="num">冲正</th><th scope="col" class="num">应收</th><th scope="col" class="num">未结</th></tr></thead>
+          <tbody>
+          {% for row in funding.shows %}
+            <tr data-show-row="{{ row.show }}">
+              <th scope="row"><span class="sr-only">{{ row.title }}</span><span class="state {{ 'state--bad' if row.cancelled_at else ('state--warn' if row.unsettled_cents else ('state--ok' if row.shares else 'state--muted')) }}">{{ '停演' if row.cancelled_at else ('有未结' if row.unsettled_cents else ('已核销' if row.shares else '无分摊')) }}</span></th>
+              <td class="num">{{ (-row.refunded_cents) | money }}</td><td class="num">{{ row.payable_cents | money }}</td><td class="num">{{ row.unsettled_cents | money }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+          <tfoot><tr><th scope="row">场次合计</th><td class="num">{{ (-total.refunded_cents) | money }}</td><td class="num">{{ total.payable_cents | money }}</td><td class="num">{{ (total.unsettled_cents - total.unallocated_cents) | money }}</td></tr></tfoot>
+        </table>
+      </section>
+    </div>
+  </div>
+  <div class="ledger-notes"><span>账面差额 = 冲正额 + 场次未结</span><span>未分配票款 <strong class="num">¥{{ total.unallocated_cents | money }}</strong></span></div>
+</section>

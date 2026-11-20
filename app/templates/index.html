@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>剧场票房分账台</title>
+  <link rel="stylesheet" href="/static/theme.css">
+  <link rel="stylesheet" href="/static/layout.css">
+  <link rel="stylesheet" href="/static/components.css">
+  <script src="/static/workbench.js" type="module"></script>
+</head>
+<body data-run="{{ manifest.run_id }}">
+  <div class="app">
+    <aside class="rail">
+      <a class="rail__brand" href="/" aria-label="剧场票房分账台首页">
+        <span class="ticket-mark" aria-hidden="true"></span><span>剧场票房<span class="brand-line">巡演财务</span></span>
+      </a>
+      <nav aria-label="业务模块">
+        {% for key, label in modules %}
+        <a class="rail__item" href="#{{ key }}" data-module="{{ key }}" {% if key == 'reconcile' %}aria-current="location"{% endif %}>{{ label }}</a>
+        {% endfor %}
+      </nav>
+      <div class="rail__book">
+        <span>当前账册</span><strong>{{ manifest.book }}</strong>
+        <span>原分账</span><code title="{{ manifest.publication_id }}">{{ manifest.publication_id[:13] }}</code>
+      </div>
+    </aside>
+    <div class="work">
+      <header class="topbar">
+        <div class="topbar__title"><h1>剧场票房分账台</h1><span class="state {{ 'state--muted' if preview else 'state--ok' }}">{{ '样例预览' if preview else '已发布' }}</span></div>
+        <div class="actions">
+          <button class="btn btn--quiet" type="button" id="upload-open">导入 CSV</button>
+          {% if preview %}
+          <button class="btn btn--primary" type="button" data-run-action="/api/runs/sample">运行样例</button>
+          {% else %}
+          <button class="btn" type="button" data-run-action="/api/runs/{{ manifest.run_id }}/rerun">重跑</button>
+          <a class="btn btn--primary" href="/api/evidence/{{ manifest.run_id }}/export" download>导出凭证 <span aria-hidden="true">↓</span></a>
+          {% if manifest.book != 'tour-demo' %}<button class="btn" type="button" data-run-action="/api/runs/sample">运行样例</button>{% endif %}
+          {% endif %}
+        </div>
+      </header>
+      <main class="content">
+        <div class="batchline">
+          <span>批次 <code title="{{ manifest.run_id }}">{{ manifest.run_id if not preview else '样例' }}</code></span>
+          <span>生成 <time datetime="{{ manifest.generated_at }}">{{ local_time }}</time></span>
+          <span>上海时间</span>
+          <output id="run-message" aria-live="polite">{{ notice }}</output>
+        </div>
+        <div class="kpis" aria-label="票房合计">
+          {% for field, label in [('paid_cents', '实收票款'), ('refunded_cents', '停演退款'), ('net_cents', '联票净收款'), ('payable_cents', '场馆应收'), ('unsettled_cents', '未结余额')] %}
+          <div class="kpi{% if field == 'net_cents' %} kpi--focus{% endif %}"><span>{{ label }}</span><strong><small>¥</small>{{ funding.totals[field] | money }}</strong></div>
+          {% endfor %}
+        </div>
+        {% include 'ledger.html' %}
+        {% include 'evidence.html' %}
+      </main>
+      <footer class="statusbar">
+        <span class="state state--ok">金额勾稽通过</span>
+        <span>采信 <b>{{ funding.totals.ticket_count }}</b> 张票 · <b>{{ funding.totals.scan_count }}</b> 次核销</span>
+        <span class="statusbar__right">规则 <code>{{ manifest.rule_version }}</code> <a href="/docs">API</a></span>
+      </footer>
+    </div>
+  </div>
+  {% include 'import.jinja' %}
+</body>
+</html>

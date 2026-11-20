@@ -1,0 +1,26 @@
+:root {
+  color-scheme: light;
+  --bg: #f8f7fa;
+  --rail: #f0ecf7;
+  --panel: #ffffff;
+  --panel-2: #faf9fc;
+  --ink: #251d32;
+  --ink-2: #565062;
+  --ink-3: #71687b;
+  --line: #e2dce9;
+  --line-2: #cec3db;
+  --accent: #6536b5;
+  --accent-ink: #4d258e;
+  --accent-soft: #f0e7fc;
+  --ok: #25684a;
+  --warn: #874d0e;
+  --bad: #a5264c;
+  --ui: "PingFang SC", "Noto Sans CJK SC", "Microsoft Yahei", sans-serif;
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --radius: 5px;
+  --row: 44px;
+  --gap: 12px;
+  --pad: 14px;
+  --bar: 62px;
+  --dur: 110ms;
+}

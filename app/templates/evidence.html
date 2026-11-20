@@ -1,0 +1,17 @@
+<section class="panel evidence" aria-labelledby="evidence-title" id="proof">
+  <div class="panel__head evidence-head">
+    <div class="evidence-title"><h2 id="evidence-title">票房证据</h2><span id="module-name">场馆勾稽</span></div>
+    <a class="isolation-link" href="#evidence" data-module="evidence"><span class="state state--warn">隔离 {{ snapshot.quarantine | length }} 行</span></a>
+  </div>
+  <form class="filters" id="evidence-filters">
+    <label class="sr-only" for="evidence-view">证据视图</label><select id="evidence-view"></select>
+    <label class="sr-only" for="ticket-filter">搜票码、单号或原因码</label><input id="ticket-filter" placeholder="搜票码、单号或原因码" maxlength="64" type="search">
+    <button class="btn" type="submit">筛选</button><button class="btn btn--quiet" id="show-filter" type="button" hidden></button>
+    <output id="evidence-status" aria-live="polite"></output>
+  </form>
+  <div class="evidence-scroll" tabindex="0" aria-label="证据明细">
+    <table class="ledger evidence-table" aria-label="票房证据"><thead id="evidence-columns"></thead><tbody id="evidence-rows"></tbody></table>
+    <noscript>启用 JavaScript 查看证据明细。</noscript>
+  </div>
+  <div class="pager"><button class="btn btn--quiet" id="page-back" type="button" disabled>上一页</button><button class="btn btn--quiet" id="page-next" type="button" disabled>下一页</button></div>
+</section>

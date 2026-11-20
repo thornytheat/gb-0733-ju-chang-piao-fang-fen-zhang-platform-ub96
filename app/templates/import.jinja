@@ -1,0 +1,10 @@
+<dialog id="import-dialog" aria-labelledby="import-title">
+  <div class="panel__head"><h2 id="import-title">导入票房账册</h2><button class="btn btn--quiet" type="button" id="upload-close" aria-label="关闭导入窗口">关闭</button></div>
+  <form id="import-form" class="import-form" enctype="multipart/form-data">
+    <label for="book">账册编号</label><input id="book" name="book" value="{{ '' if preview else manifest.book }}" required pattern="[A-Za-z0-9][A-Za-z0-9_\-]{0,39}" maxlength="40" autocomplete="off">
+    <label for="files">五份 CSV 文件</label><input id="files" name="files" type="file" accept=".csv,text/csv" multiple required>
+    <p class="file-list"><code>tickets.csv</code><code>shows.csv</code><code>rights.csv</code><code>scans.csv</code><code>refunds.csv</code></p>
+    <output id="import-message" aria-live="polite"></output>
+    <button class="btn btn--primary" type="submit">计算并发布</button>
+  </form>
+</dialog>
